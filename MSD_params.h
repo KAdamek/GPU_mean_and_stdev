@@ -1,0 +1,10 @@
+#ifndef __MSD_GPU_LIBRARY_PARAMETERS__
+#define __MSD_GPU_LIBRARY_PARAMETERS__
+
+#define MSD_NTHREADS 512
+#define MSD_WARP 32
+#define MSD_HALF_WARP 16
+#define MSD_PARTIAL_SIZE 4
+#define MSD_RESULTS_SIZE 2
+
+#endif
