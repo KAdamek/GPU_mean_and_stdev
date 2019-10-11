@@ -9,11 +9,6 @@
 #include "MSD_Configuration.h"
 
 
-// ERROR LIST:
-// 0: no error
-// 1: cannot allocate memory
-// 2: error in deallocation
-
 void Get_MSD_Error(MSD_Error error){
 	switch(error) {
 		case 0 :

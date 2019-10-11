@@ -33,7 +33,7 @@ public:
 };
 
 class MSD_Configuration {
-public:
+private:
 	int3 nSteps;
 	dim3 partials_gridSize;
 	dim3 partials_blockSize;
@@ -50,18 +50,14 @@ public:
 	int offset;
 	bool outlier_rejection;
 	float OR_sigma_range;
-	double MSD_time;
 	
 	float *d_partial_MSD;
 	int   *d_partial_nElements;
 	
 	cudaStream_t cuda_stream;
 	
-	MSD_Error MSD_error;
-	
 	bool ready;
 	
-
 	int Choose_Divider(size_t number, size_t max_divider) {
 		int seive[12]={2, 3, 4, 5, 7, 11, 13, 17, 19, 23, 29, 31};
 		int f, nRest, nBlocks, N, N_accepted;
@@ -227,6 +223,66 @@ public:
 		cuda_stream = NULL;
 	}
 
+	
+public:
+	MSD_Error MSD_error;
+	double MSD_time;
+	
+	//----> Getters
+	bool MSD_ready(void) {
+		return(ready);
+	}
+	bool MSD_outlier_rejection(void) {
+		return(outlier_rejection);
+	}
+	dim3 get_partial_gridSize(){
+		return(partials_gridSize);
+	}
+	dim3 get_partial_blockSize(){
+		return(partials_blockSize);
+	}
+	dim3 get_final_gridSize(){
+		return(final_gridSize);
+	}
+	dim3 get_final_blockSize(){
+		return(final_blockSize);
+	}
+	cudaStream_t get_CUDA_stream(){
+		return(cuda_stream);
+	}
+	float* get_pointer_partial_MSD(){
+		return(d_partial_MSD);
+	}
+	int* get_pointer_partial_nElements(){
+		return(d_partial_nElements);
+	}
+	int3 get_nSteps(){
+		return(nSteps);
+	}
+	int get_nDim(){
+		return(nDim);
+	}
+	size_t get_dim_x(){
+		return(dim_x);
+	}
+	size_t get_dim_y(){
+		return(dim_y);
+	}
+	size_t get_dim_z(){
+		return(dim_z);
+	}
+	int get_offset(){
+		return(offset);
+	}
+	float get_OR_sigma_range(){
+		return(OR_sigma_range);
+	}
+	int get_nBlocks_total(){
+		return(nBlocks_total);
+	}
+	
+	
+	//----> User functions	
 	void PrintDebug() {
 		printf("MSD-library --> Data dimensions: %zu x %zu x %zu; offset:%d;\n", dim_x, dim_y, dim_z, offset);
 		printf("MSD-library --> nSteps:[%d;%d;%d]; nBlocks_total:%d; address:%zu;\n", nSteps.x, nSteps.y, nSteps.z, nBlocks_total, address);
@@ -278,9 +334,6 @@ public:
 		if(nDim==3) Calculate_Kernel_Parameters_3d(nBatches);
 		Allocate_temporary_workarea();
 		
-		
-		//Debug
-		//PrintDebug();
 		if(MSD_error==0) ready=true;
 		return(MSD_error);
 	}

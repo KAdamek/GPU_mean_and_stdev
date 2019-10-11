@@ -2,14 +2,14 @@
 # CUDA_HOME are supposed to be on default position
 # and set it in your PATH .bashrc
 ###############################################################
-INC := -I/usr/local/cuda/include
-LIB := -L/usr/local/cuda/lib64 -lcudart -lcufft -lcuda
-LIBMSD := -L/usr/local/cuda/lib64 -lcudart -lcufft -lcuda -L. -lMSDGPU
+INC := -I${CUDA_HOME}/include
+LIB := -L${CUDA_HOME}/lib64 -lcudart -lcufft -lcuda
+LIBMSD := -L${CUDA_HOME}/lib64 -lcudart -lcufft -lcuda -L. -lMSDGPU
 
 # use this compilers
 # g++ just because the file write
 GCC = g++
-NVCC = /usr/local/cuda/bin/nvcc
+NVCC = ${CUDA_HOME}/bin/nvcc
 
 
 ###############################################################

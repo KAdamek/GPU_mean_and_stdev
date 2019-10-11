@@ -1,5 +1,3 @@
-#include "debug.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -87,47 +85,24 @@ int main(int argc, char* argv[]) {
 	size_t dim_x;
 	int offset;
 	int device_id;
-	int nRuns;
 
 	// Check!
 	char * pEnd;
-	if (argc==5) {
+	if (argc==4) {
 		dim_x        = strtol(argv[1],&pEnd,10);
 		offset       = strtol(argv[2],&pEnd,10);
 		device_id    = strtol(argv[3],&pEnd,10);
-		nRuns        = strtol(argv[4],&pEnd,10);
 	}
 	else {
 		printf("Argument error!\n");
 		printf(" 1) x dimension of the data\n");
 		printf(" 2) offset\n");
 		printf(" 3) device id\n");
-		printf(" 4) number of GPU kernel runs (optional)\n");
         return(1);
 	}
 	
-	if(DEBUG) {
-		printf("dim_x:        %zu\n",dim_x);
-		printf("offset:       %d\n",offset);
-		printf("device id:    %d\n",device_id);
-		printf("nRuns:        %d\n",nRuns);
-	}
-	
-	//----------------> GSL stuff 
-	//const gsl_rng_type *rndType;
-	//gsl_rng *rnd_handle;
-	//gsl_rng_env_setup();
-	//long int seed=(long int) time(NULL);
-	//rndType = gsl_rng_default;
-	//rnd_handle = gsl_rng_alloc (rndType);
-	//gsl_rng_set(rnd_handle,seed);
-	//----------------> GSL stuff 
-	
 	size_t input_size = dim_x;
 	size_t MSD_size = 2;
-	
-	if(VERBOSE) printf("Input:%0.3f MB;\n",input_size*4.0/(1024.0*1024.0));
-	if(VERBOSE) printf("\t\tWelcome\n");
 
 	float *h_input;
 	float *h_MSD;
@@ -163,9 +138,8 @@ int main(int argc, char* argv[]) {
 	cudaMemGetInfo(&free_mem,&total_mem);
 	float free_memory = (float) free_mem/(1024.0*1024.0);
 	float memory_required = (input_size*sizeof(float))/(1024.0*1024.0);
-	printf("\n");
-	printf("Device has %0.3f MB of total memory, which %0.3f MB is available. Memory required %0.3f MB\n", (float) total_mem/(1024.0*1024.0), free_memory ,memory_required);
 	if(memory_required>free_memory) {
+		printf("Device has %0.3f MB of total memory, which %0.3f MB is available. Memory required %0.3f MB\n", (float) total_mem/(1024.0*1024.0), free_memory ,memory_required);
 		printf("\n \n Array is too big for the device! \n \n"); 
 		return(1);
 	}
@@ -179,9 +153,9 @@ int main(int argc, char* argv[]) {
 	float *d_input;
 	float *d_MSD;
 	size_t *d_MSD_nElements;
-	cudaMalloc((void **) &d_input,  sizeof(float)*input_size);
-	cudaMalloc((void **) &d_MSD, sizeof(float)*MSD_RESULTS_SIZE);
-	cudaMalloc((void **) &d_MSD_nElements, sizeof(size_t));
+	if ( cudaSuccess != cudaMalloc((void **) &d_input,  sizeof(float)*input_size)) {printf("CUDA API error\n"); return(0);}
+	if ( cudaSuccess != cudaMalloc((void **) &d_MSD, sizeof(float)*MSD_RESULTS_SIZE)) {printf("CUDA API error\n"); return(0);}
+	if ( cudaSuccess != cudaMalloc((void **) &d_MSD_nElements, sizeof(size_t))) {printf("CUDA API error\n"); return(0);}
 	
 	//---------> Copy data to the device
 	printf("Data transfer to the device memory...: \t");
@@ -198,7 +172,6 @@ int main(int argc, char* argv[]) {
 	std::vector<size_t> dimensions={dim_x}; // dimensions of the data. Fastest moving coordinate is at the end.
 	MSD_error = MSD_conf.Create_MSD_Plan(dimensions, offset, outlier_rejection, 3.0);
 	if(MSD_error!=MSDSuccess) Get_MSD_Error(MSD_error);
-	if(DEBUG) MSD_conf.PrintDebug();
 	
 	//---------> Get mean and stdev through library
 	timer.Start();
@@ -218,36 +191,34 @@ int main(int argc, char* argv[]) {
 	transfer_out+=timer.Elapsed();
 	printf("done in %g ms.\n", timer.Elapsed());
 	
-	printf("\nMSD GPU library outputs one float array (for example d_MSD)\n which contains mean as d_MSD[0] and standard deviation as d_MSD[1].\n Values calculated by MSD GPU library are mean = %f; stdev = %f\n\n", h_MSD[0], h_MSD[1]);
+	printf("\n\nMSD GPU library outputs one float array (for example d_MSD)\n which contains mean as d_MSD[0] and standard deviation as d_MSD[1].\n Values calculated by MSD GPU library are mean = %f; stdev = %f\n\n", h_MSD[0], h_MSD[1]);
 	
 	//---------> Feeing allocated resources
-	cudaFree(d_input);
-	cudaFree(d_MSD);
-	cudaFree(d_MSD_nElements);
+	if ( cudaSuccess != cudaFree(d_input)) {printf("CUDA API error\n"); return(0);}
+	if ( cudaSuccess != cudaFree(d_MSD)) {printf("CUDA API error\n"); return(0);}
+	if ( cudaSuccess != cudaFree(d_MSD_nElements)) {printf("CUDA API error\n"); return(0);}
 	MSD_error = MSD_conf.Destroy_MSD_Plan();
 	if(MSD_error!=MSDSuccess) Get_MSD_Error(MSD_error);
 	//------------------------ DEVICE ---------------------<
 	//-----------------------------------------------------<
 	
-	if (CHECK){
-		double signal_mean, signal_sd, merror, sderror;
-		MSD_Kahan(h_input, dim_x, 1, offset, &signal_mean, &signal_sd);
-		merror  = sqrt((signal_mean-h_MSD[0])*(signal_mean-h_MSD[0]));
-		sderror = sqrt((signal_sd-h_MSD[1])*(signal_sd-h_MSD[1]));
-		if(merror<1e-3 && sderror<1e-2) printf("     Test:\033[1;32mPASSED\033[0m\n");
-		else printf("     Test:\033[1;31mFAILED\033[0m\n     Difference Kahan-GPU Mean:%e; Standard deviation:%e;\n", merror, sderror);
-		
-		printf("GPU results: Mean: %e, Standard deviation: %e; Number of elements:%zu;\n", h_MSD[0], h_MSD[1], h_MSD_nElements);
-		printf("MSD_kahan:   Mean: %e, Standard deviation: %e;\n",signal_mean, signal_sd);
-		printf("Difference Kahan-GPU Mean:%e; Standard deviation:%e;\n", merror, sderror);
-	}
+	//---> Checks
+	double signal_mean, signal_sd, merror, sderror;
+	MSD_Kahan(h_input, 1, dim_x, offset, &signal_mean, &signal_sd);
+	merror  = sqrt((signal_mean-h_MSD[0])*(signal_mean-h_MSD[0]));
+	sderror = sqrt((signal_sd-h_MSD[1])*(signal_sd-h_MSD[1]));
+	
+	printf("GPU results: Mean: %e, Standard deviation: %e; Number of elements:%zu;\n", h_MSD[0], h_MSD[1], h_MSD_nElements);
+	printf("MSD_kahan:   Mean: %e, Standard deviation: %e;\n",signal_mean, signal_sd);
+	printf("Difference Kahan-GPU Mean:%e; Standard deviation:%e;\n", merror, sderror);
+	//-------<
 	
 	free(h_input);
 	free(h_MSD);
 
 	cudaDeviceReset();
 	
-	if (VERBOSE) printf("Finished!\n");
+	printf("Finished!\n");
 
 	return (0);
 }
