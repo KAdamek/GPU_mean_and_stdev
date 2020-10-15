@@ -47,9 +47,9 @@ private:
 	size_t dim_x;
 	size_t dim_y;
 	size_t dim_z;
-	int offset;
+	size_t offset;
 	bool outlier_rejection;
-	float OR_sigma_range;
+	float sigma_threshold;
 	
 	float *d_partial_MSD;
 	int   *d_partial_nElements;
@@ -57,28 +57,6 @@ private:
 	cudaStream_t cuda_stream;
 	
 	bool ready;
-	
-	int Choose_Divider(size_t number, size_t max_divider) {
-		int seive[12]={2, 3, 4, 5, 7, 11, 13, 17, 19, 23, 29, 31};
-		int f, nRest, nBlocks, N, N_accepted;
-
-		N=1; N_accepted=1;
-		do {
-			N=1;
-			for(f=0; f<12; f++) {
-				nBlocks=number/seive[f];
-				nRest=number - nBlocks*seive[f];
-				if(nRest==0) {
-					N=seive[f];
-					N_accepted=N_accepted*N;
-					break;
-				}
-			}
-			number=number/N;
-		} while(((size_t) N_accepted)<=max_divider && N>1);
-
-		return(N_accepted/N);
-	}
 
 	int ChooseNumberOfThreads() {
 		int nThreads=2048;
@@ -98,7 +76,7 @@ private:
 		
 		//--> Grid and block for partial calculation
 		nSteps.x  = 8;
-		partials_gridSize.x = (int) (dim_x-offset + nSteps.x*MSD_NTHREADS - 1)/(nSteps.x*MSD_NTHREADS);
+		partials_gridSize.x = (int) (((long int) (dim_x-offset + nSteps.x*MSD_NTHREADS - 1))/(nSteps.x*MSD_NTHREADS));
 		partials_gridSize.y = 1;
 		partials_gridSize.z = nBatches;
 
@@ -129,8 +107,8 @@ private:
 		nSteps.x  = 1;
 		partials_gridSize.x = (int)((dim_x-offset + MSD_NTHREADS - 1)/MSD_NTHREADS);
 
-		nSteps.y  = Choose_Divider(dim_y, 64);
-		partials_gridSize.y = dim_y/nSteps.y; // we can do this because nSteps.y divides dim_y without remainder
+		nSteps.y  = MSD_Y_STEPS;
+		partials_gridSize.y = ((double) (dim_y + MSD_Y_STEPS - 1))/((double) MSD_Y_STEPS);
 
 		partials_gridSize.z = nBatches;
 		
@@ -161,8 +139,8 @@ private:
 		nSteps.x  = 1;
 		partials_gridSize.x = (int)((dim_x-offset + MSD_NTHREADS - 1)/MSD_NTHREADS);
 
-		nSteps.y  = Choose_Divider(dim_y, 64);
-		partials_gridSize.y = dim_y/nSteps.y; // we can do this because nSteps.y divides dim_y without remainder
+		nSteps.y  = MSD_Y_STEPS;
+		partials_gridSize.y = ((double) (dim_y + MSD_Y_STEPS - 1))/((double) MSD_Y_STEPS);
 		
 		nSteps.z = 1;
 		partials_gridSize.z = dim_z;
@@ -192,10 +170,17 @@ private:
 	void Allocate_temporary_workarea(){
 		cudaError_t CUDA_error;
 		if(nBlocks_total>0){
-			CUDA_error = cudaMalloc((void **) &d_partial_MSD, nBatches*nBlocks_total*MSD_PARTIAL_SIZE*sizeof(float));
-			if(CUDA_error != cudaSuccess) MSD_error = 1;
-			CUDA_error = cudaMalloc((void **) &d_partial_nElements, nBatches*nBlocks_total*sizeof(int));
-			if(CUDA_error != cudaSuccess) MSD_error = 1;
+			size_t free_memory, total_memory;
+			cudaMemGetInfo(&free_memory,&total_memory);
+			size_t partial_MSD_size = nBatches*nBlocks_total*MSD_PARTIAL_SIZE*sizeof(float);
+			size_t partial_nElements_size = nBatches*nBlocks_total*sizeof(int);
+			if( (partial_MSD_size+partial_nElements_size)<free_memory) {
+				CUDA_error = cudaMalloc((void **) &d_partial_MSD, partial_MSD_size);
+				if(CUDA_error != cudaSuccess) MSD_error = 1;
+				CUDA_error = cudaMalloc((void **) &d_partial_nElements, partial_nElements_size);
+				if(CUDA_error != cudaSuccess) MSD_error = 1;
+			}
+			else MSD_error = 13;
 		}
 	}
 	
@@ -213,6 +198,8 @@ private:
 		data_dim.clear();
 		offset = 0;
 		MSD_time = 0;
+		outlier_rejection = false;
+		sigma_threshold = 0;
 		
 		d_partial_MSD = NULL;
 		d_partial_nElements = NULL;
@@ -271,11 +258,11 @@ public:
 	size_t get_dim_z(){
 		return(dim_z);
 	}
-	int get_offset(){
+	size_t get_offset(){
 		return(offset);
 	}
-	float get_OR_sigma_range(){
-		return(OR_sigma_range);
+	float get_sigma_threshold(){
+		return(sigma_threshold);
 	}
 	int get_nBlocks_total(){
 		return(nBlocks_total);
@@ -284,7 +271,7 @@ public:
 	
 	//----> User functions	
 	void PrintDebug() {
-		printf("MSD-library --> Data dimensions: %zu x %zu x %zu; offset:%d;\n", dim_x, dim_y, dim_z, offset);
+		printf("MSD-library --> Data dimensions: %zu x %zu x %zu; offset:%zu;\n", dim_x, dim_y, dim_z, offset);
 		printf("MSD-library --> nSteps:[%d;%d;%d]; nBlocks_total:%d; address:%zu;\n", nSteps.x, nSteps.y, nSteps.z, nBlocks_total, address);
 		printf("MSD-library --> partials_gridSize=[%d;%d;%d]; partials_blockSize=[%d;%d;%d]\n", partials_gridSize.x, partials_gridSize.y, partials_gridSize.z, partials_blockSize.x, partials_blockSize.y, partials_blockSize.z);
 		printf("MSD-library --> final_gridSize=[%d;%d;%d]; final_blockSize=[%d;%d;%d]\n", final_gridSize.x, final_gridSize.y, final_gridSize.z, final_blockSize.x, final_blockSize.y, final_blockSize.z);
@@ -298,7 +285,7 @@ public:
 		cuda_stream = t_cuda_stream;
 	}
 	
-	MSD_Error Create_MSD_Plan(std::vector<size_t> t_data_dimensions, int t_offset, bool enable_outlier_rejection, float t_OR_sigma_range, int t_nBatches=1){
+	MSD_Error Create_MSD_Plan(std::vector<size_t> t_data_dimensions, size_t t_offset, bool enable_outlier_rejection, float t_sigma_threshold, int t_nBatches=1){
 		data_dim = t_data_dimensions;
 		nDim = (int) data_dim.size();
 		nBatches = t_nBatches;
@@ -313,26 +300,39 @@ public:
 		}
 		if(data_dim.size()==1) {
 			dim_x = data_dim[0];
+			if(dim_x<=0) MSD_error = 10;
 		}
 		if(data_dim.size()==2) {
 			dim_y = data_dim[0];
+			if(dim_y<=0) MSD_error = 11;
 			dim_x = data_dim[1];
+			if(dim_x<=0) MSD_error = 10;
 		}
 		if(data_dim.size()==3) {
 			dim_z = data_dim[0];
+			if(dim_z<=0) MSD_error = 12;
 			dim_y = data_dim[1];
+			if(dim_y<=0) MSD_error = 11;
 			dim_x = data_dim[2];
+			if(dim_x<=0) MSD_error = 10;
 		}
+		if(MSD_error>0) return(MSD_error);
 		
 		offset   = t_offset;
+		if(offset>(dim_x-2)) {
+			MSD_error = 9;
+			return(MSD_error);
+		}
 		
 		outlier_rejection = enable_outlier_rejection;
-		OR_sigma_range = t_OR_sigma_range;
+		sigma_threshold = t_sigma_threshold;
 		
 		if(nDim==1) Calculate_Kernel_Parameters_1d(nBatches);
 		if(nDim==2) Calculate_Kernel_Parameters_2d(nBatches);
 		if(nDim==3) Calculate_Kernel_Parameters_3d(nBatches);
+		if(MSD_error>0) return(MSD_error);
 		Allocate_temporary_workarea();
+		if(MSD_error>0) return(MSD_error);
 		
 		if(MSD_error==0) ready=true;
 		return(MSD_error);

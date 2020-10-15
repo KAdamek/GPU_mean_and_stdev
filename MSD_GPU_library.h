@@ -38,6 +38,21 @@ void Get_MSD_Error(MSD_Error error){
 		case 8 :
 			printf("MSD Plan cannot perform more then one batch for 3d data.\n" );
 			break;
+		case 9 :
+			printf("Offset cannot be smaller then zero or greater then x dimension-2.\n" );
+			break;
+		case 10 :
+			printf("x dimension is smaller then or equal to 0.\n" );
+			break;
+		case 11 :
+			printf("y dimension is smaller then or equal to 0.\n" );
+			break;
+		case 12 :
+			printf("z dimension is smaller then or equal to 0.\n" );
+			break;
+		case 13 :
+			printf("Not enough memory for temporary work area.\n" );
+			break;
 		default :
 			printf("Invalid error\n" );
 	}

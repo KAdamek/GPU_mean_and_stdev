@@ -50,17 +50,17 @@ int MSD_outlier_rejection(float *d_MSD, size_t *d_MSD_nElements, input_type *d_i
 	size_t dim_y = MSD_conf->get_dim_y();
 	size_t dim_z = MSD_conf->get_dim_z();
 	int offset = MSD_conf->get_offset();
-	float OR_sigma_range = MSD_conf->get_OR_sigma_range();
+	float sigma_threshold = MSD_conf->get_sigma_threshold();
 	int nBlocks_total = MSD_conf->get_nBlocks_total();
 	
 	if(nDim==1){
 		call_MSD_GPU_calculate_partials_1d_and_minmax(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.x, dim_x, offset);
 	}
 	else if(nDim==2){
-		call_MSD_GPU_calculate_partials_2d_and_minmax(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.y, dim_x, offset);
+		call_MSD_GPU_calculate_partials_2d_and_minmax(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, dim_x, dim_y, offset);
 	}
 	else if(nDim==3){
-		call_MSD_GPU_calculate_partials_3d_and_minmax(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.y, dim_x, dim_y, offset);
+		call_MSD_GPU_calculate_partials_3d_and_minmax(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, dim_x, dim_y, offset);
 	}
 	call_MSD_GPU_final_regular(final_gridSize, final_blockSize, 0, cuda_stream, d_partial_MSD, d_partial_nElements, d_MSD, d_MSD_nElements, nBlocks_total);
 	//-------- Timed ---<
@@ -92,18 +92,18 @@ int MSD_outlier_rejection(float *d_MSD, size_t *d_MSD_nElements, input_type *d_i
 	delete [] h_blocks;
 	#endif
 	
-	// This should be in the plan2
+	//TODO Criteria should be in the MSD_Config
 	for(int i=0; i<5; i++){
 		timer.Start();
 		//-------- Timed --->
 		if(nDim==1){
-			call_MSD_BLN_calculate_partials_1d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, nSteps.x, dim_x, offset, OR_sigma_range);
+			call_MSD_BLN_calculate_partials_1d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, nSteps.x, dim_x, offset, sigma_threshold);
 		}
 		else if(nDim==2){
-			call_MSD_BLN_calculate_partials_2d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, nSteps.y, dim_x, offset, OR_sigma_range);
+			call_MSD_BLN_calculate_partials_2d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, dim_x, dim_y, offset, sigma_threshold);
 		}
 		else if(nDim==3){
-			call_MSD_BLN_calculate_partials_3d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, nSteps.y, dim_x, dim_y, offset, OR_sigma_range);
+			call_MSD_BLN_calculate_partials_3d_and_minmax_with_outlier_rejection(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, d_MSD, dim_x, dim_y, offset, sigma_threshold);
 		}
 		call_MSD_GPU_final_nonregular(final_gridSize, final_blockSize, 0, cuda_stream, d_partial_MSD, d_partial_nElements, d_MSD, d_MSD_nElements, nBlocks_total);
 		//-------- Timed ---<
@@ -156,17 +156,17 @@ int MSD_normal(float *d_MSD, size_t *d_MSD_nElements, input_type *d_input, MSD_C
 	size_t dim_y = MSD_conf->get_dim_y();
 	size_t dim_z = MSD_conf->get_dim_z();
 	int offset = MSD_conf->get_offset();
-	float OR_sigma_range = MSD_conf->get_OR_sigma_range();
+	float sigma_threshold = MSD_conf->get_sigma_threshold();
 	int nBlocks_total = MSD_conf->get_nBlocks_total();
 	
 	if(nDim==1){
 		call_MSD_GPU_calculate_partials_1d(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.x, dim_x, offset);
 	}
 	else if(nDim==2){
-		call_MSD_GPU_calculate_partials_2d(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.y, dim_x, offset);
+		call_MSD_GPU_calculate_partials_2d(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, dim_x, dim_y, offset);
 	}
 	else if(nDim==3){
-		call_MSD_GPU_calculate_partials_3d(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, nSteps.y, dim_x, dim_y, offset);
+		call_MSD_GPU_calculate_partials_3d(partials_gridSize, partials_blockSize, 0, cuda_stream, d_input, d_partial_MSD, d_partial_nElements, dim_x, dim_y, offset);
 	}
 	//cudaStreamSynchronize(cuda_stream);
 	call_MSD_GPU_final_regular(final_gridSize, final_blockSize, 0, cuda_stream, d_partial_MSD, d_partial_nElements, d_MSD, d_MSD_nElements, nBlocks_total);

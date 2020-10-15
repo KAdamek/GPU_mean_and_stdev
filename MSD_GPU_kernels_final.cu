@@ -111,23 +111,19 @@ __global__ void MSD_GPU_final_nonregular(float *d_partial_MSD, int *d_partial_nE
 //----------------------------------------------------------------------------
 //---------------> Simple C wrappers
 // NOTE: for the moment this will work only for fp32
-void call_MSD_GPU_final_regular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams,
-			float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, int size){
+void call_MSD_GPU_final_regular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams, float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, int size){
 	MSD_GPU_final_regular<<< grid_size, block_size, shared_memory_bytes, streams>>>(d_partial_MSD, d_partial_nElements, d_output_MSD, d_output_nElements, size);
 }
 
-void call_MSD_GPU_final_regular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams,
-			float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, float *d_previous_MSD, size_t *d_previous_nElements, int size){
+void call_MSD_GPU_final_regular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams, float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, float *d_previous_MSD, size_t *d_previous_nElements, int size){
 	MSD_GPU_final_regular<<< grid_size, block_size, shared_memory_bytes, streams>>>(d_partial_MSD, d_partial_nElements, d_output_MSD, d_output_nElements, d_previous_MSD, d_previous_nElements, size);
 }
 
-void call_MSD_GPU_final_nonregular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams,
-			float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, int size){
+void call_MSD_GPU_final_nonregular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams, float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, int size){
 	MSD_GPU_final_nonregular<<< grid_size, block_size, shared_memory_bytes, streams>>>(d_partial_MSD, d_partial_nElements, d_output_MSD, d_output_nElements, size);
 }
 
-void call_MSD_GPU_final_nonregular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams,
-			float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, float *d_previous_MSD, size_t *d_previous_nElements, int size){
+void call_MSD_GPU_final_nonregular(const dim3 &grid_size, const dim3 &block_size, int shared_memory_bytes, cudaStream_t streams, float *d_partial_MSD, int *d_partial_nElements, float *d_output_MSD, size_t *d_output_nElements, float *d_previous_MSD, size_t *d_previous_nElements, int size){
 	MSD_GPU_final_nonregular<<< grid_size, block_size, shared_memory_bytes, streams>>>(d_partial_MSD, d_partial_nElements, d_output_MSD, d_output_nElements, d_previous_MSD, d_previous_nElements, size);
 }
 

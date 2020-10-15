@@ -27,31 +27,16 @@ ifdef reglim
 NVCCFLAGS += --maxrregcount=$(reglim)
 endif
 
-all: clean msdlib example1d example1dbatched example1dOR example2d example2dOR example2dbatches example3d example3dOR
+all: clean msdlib example1d example2d example3d
 
 example2d: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
 	$(NVCC) -o MSD_example_2d.exe MSD_example_2d.cu $(LIBMSD) $(NVCCFLAGS) 
 
-example2dOR: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
-	$(NVCC) -o MSD_example_2d_outlier_rejection.exe MSD_example_2d_outlier_rejection.cu $(LIBMSD) $(NVCCFLAGS) 
-	
-example2dbatches: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
-	$(NVCC) -o MSD_example_2d_batches.exe MSD_example_2d_batches.cu $(LIBMSD) $(NVCCFLAGS) 
-
 example1d: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
 	$(NVCC) -o MSD_example_1d.exe MSD_example_1d.cu $(LIBMSD) $(NVCCFLAGS) 
 	
-example1dbatched: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
-	$(NVCC) -o MSD_example_1d_batches.exe MSD_example_1d_batches.cu $(LIBMSD) $(NVCCFLAGS) 
-	
-example1dOR: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
-	$(NVCC) -o MSD_example_1d_outlier_rejection.exe MSD_example_1d_outlier_rejection.cu $(LIBMSD) $(NVCCFLAGS) 
-	
 example3d: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
 	$(NVCC) -o MSD_example_3d.exe MSD_example_3d.cu $(LIBMSD) $(NVCCFLAGS) 
-
-example3dOR: timer.h MSD_GPU_library.h MSD_Configuration.h Makefile
-	$(NVCC) -o MSD_example_3d_outlier_rejection.exe MSD_example_3d_outlier_rejection.cu $(LIBMSD) $(NVCCFLAGS) 
 
 msdlib: MSD-library.o 
 	
